@@ -102,7 +102,7 @@ type Config struct {
 
 // A LoadOption adjusts details of how Skycfg configs are loaded.
 type LoadOption interface {
-	applyLoad(*LoadOptions)
+	ApplyLoad(*LoadOptions)
 }
 
 type LoadOptions struct {
@@ -111,9 +111,9 @@ type LoadOptions struct {
 	ProtoRegistry impl.ProtoRegistry
 }
 
-type fnLoadOption func(*LoadOptions)
+type FnLoadOption func(*LoadOptions)
 
-func (fn fnLoadOption) applyLoad(opts *LoadOptions) { fn(opts) }
+func (fn FnLoadOption) ApplyLoad(opts *LoadOptions) { fn(opts) }
 
 type unstableProtoRegistry interface {
 	impl.ProtoRegistry
@@ -122,7 +122,7 @@ type unstableProtoRegistry interface {
 // WithGlobals adds additional global symbols to the Starlark environment
 // when loading a Skycfg config.
 func WithGlobals(globals starlark.StringDict) LoadOption {
-	return fnLoadOption(func(opts *LoadOptions) {
+	return FnLoadOption(func(opts *LoadOptions) {
 		for key, value := range globals {
 			opts.Globals[key] = value
 		}
@@ -135,7 +135,7 @@ func WithFileReader(r FileReader) LoadOption {
 	if r == nil {
 		panic("WithFileReader: nil reader")
 	}
-	return fnLoadOption(func(opts *LoadOptions) {
+	return FnLoadOption(func(opts *LoadOptions) {
 		opts.FileReader = r
 	})
 }
@@ -146,7 +146,7 @@ func WithProtoRegistry(r unstableProtoRegistry) LoadOption {
 	if r == nil {
 		panic("WithProtoRegistry: nil registry")
 	}
-	return fnLoadOption(func(opts *LoadOptions) {
+	return FnLoadOption(func(opts *LoadOptions) {
 		opts.ProtoRegistry = r
 	})
 }
@@ -167,7 +167,7 @@ func Load(ctx context.Context, filename string, opts ...LoadOption) (*Config, er
 		FileReader: LocalFileReader(filepath.Dir(filename)),
 	}
 	for _, opt := range opts {
-		opt.applyLoad(parsedOpts)
+		opt.ApplyLoad(parsedOpts)
 	}
 	protoModule.Registry = parsedOpts.ProtoRegistry
 	configLocals, tests, err := loadImpl(ctx, parsedOpts, filename)
