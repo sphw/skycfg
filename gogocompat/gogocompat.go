@@ -24,7 +24,7 @@ import (
 	gogo_proto "github.com/gogo/protobuf/proto"
 	"github.com/golang/protobuf/proto"
 
-	impl "github.com/stripe/skycfg/internal/go/skycfg"
+	impl "github.com/sphw/skycfg/internal/go/skycfg"
 )
 
 type unstableProtoRegistry interface {

@@ -1,4 +1,4 @@
-module github.com/stripe/skycfg
+module github.com/sphw/skycfg
 
 require (
 	github.com/gogo/protobuf v1.2.0
