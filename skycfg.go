@@ -102,18 +102,18 @@ type Config struct {
 
 // A LoadOption adjusts details of how Skycfg configs are loaded.
 type LoadOption interface {
-	applyLoad(*loadOptions)
+	applyLoad(*LoadOptions)
 }
 
-type loadOptions struct {
-	globals       starlark.StringDict
-	fileReader    FileReader
-	protoRegistry impl.ProtoRegistry
+type LoadOptions struct {
+	Globals       starlark.StringDict
+	FileReader    FileReader
+	ProtoRegistry impl.ProtoRegistry
 }
 
-type fnLoadOption func(*loadOptions)
+type fnLoadOption func(*LoadOptions)
 
-func (fn fnLoadOption) applyLoad(opts *loadOptions) { fn(opts) }
+func (fn fnLoadOption) applyLoad(opts *LoadOptions) { fn(opts) }
 
 type unstableProtoRegistry interface {
 	impl.ProtoRegistry
@@ -122,9 +122,9 @@ type unstableProtoRegistry interface {
 // WithGlobals adds additional global symbols to the Starlark environment
 // when loading a Skycfg config.
 func WithGlobals(globals starlark.StringDict) LoadOption {
-	return fnLoadOption(func(opts *loadOptions) {
+	return fnLoadOption(func(opts *LoadOptions) {
 		for key, value := range globals {
-			opts.globals[key] = value
+			opts.Globals[key] = value
 		}
 	})
 }
@@ -135,8 +135,8 @@ func WithFileReader(r FileReader) LoadOption {
 	if r == nil {
 		panic("WithFileReader: nil reader")
 	}
-	return fnLoadOption(func(opts *loadOptions) {
-		opts.fileReader = r
+	return fnLoadOption(func(opts *LoadOptions) {
+		opts.FileReader = r
 	})
 }
 
@@ -146,16 +146,16 @@ func WithProtoRegistry(r unstableProtoRegistry) LoadOption {
 	if r == nil {
 		panic("WithProtoRegistry: nil registry")
 	}
-	return fnLoadOption(func(opts *loadOptions) {
-		opts.protoRegistry = r
+	return fnLoadOption(func(opts *LoadOptions) {
+		opts.ProtoRegistry = r
 	})
 }
 
 // Load reads a Skycfg config file from the filesystem.
 func Load(ctx context.Context, filename string, opts ...LoadOption) (*Config, error) {
 	protoModule := impl.NewProtoModule(nil /* TODO: registry from options */)
-	parsedOpts := &loadOptions{
-		globals: starlark.StringDict{
+	parsedOpts := &LoadOptions{
+		Globals: starlark.StringDict{
 			"fail":   starlark.NewBuiltin("fail", skyFail),
 			"hash":   impl.HashModule(),
 			"json":   impl.JsonModule(),
@@ -164,26 +164,26 @@ func Load(ctx context.Context, filename string, opts ...LoadOption) (*Config, er
 			"yaml":   impl.YamlModule(),
 			"url":    impl.UrlModule(),
 		},
-		fileReader: LocalFileReader(filepath.Dir(filename)),
+		FileReader: LocalFileReader(filepath.Dir(filename)),
 	}
 	for _, opt := range opts {
 		opt.applyLoad(parsedOpts)
 	}
-	protoModule.Registry = parsedOpts.protoRegistry
+	protoModule.Registry = parsedOpts.ProtoRegistry
 	configLocals, tests, err := loadImpl(ctx, parsedOpts, filename)
 	if err != nil {
 		return nil, err
 	}
 	return &Config{
 		filename: filename,
-		globals:  parsedOpts.globals,
+		globals:  parsedOpts.Globals,
 		locals:   configLocals,
 		tests:    tests,
 	}, nil
 }
 
-func loadImpl(ctx context.Context, opts *loadOptions, filename string) (starlark.StringDict, []*Test, error) {
-	reader := opts.fileReader
+func loadImpl(ctx context.Context, opts *LoadOptions, filename string) (starlark.StringDict, []*Test, error) {
+	reader := opts.FileReader
 
 	type cacheEntry struct {
 		globals starlark.StringDict
@@ -217,7 +217,7 @@ func loadImpl(ctx context.Context, opts *loadOptions, filename string) (starlark
 		}
 
 		cache[modulePath] = nil
-		globals, err := starlark.ExecFile(thread, modulePath, moduleSource, opts.globals)
+		globals, err := starlark.ExecFile(thread, modulePath, moduleSource, opts.Globals)
 		cache[modulePath] = &cacheEntry{globals, err}
 
 		for name, val := range globals {
